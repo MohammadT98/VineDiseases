@@ -1,0 +1,70 @@
+Drone's actions:
+------------
+Checked landing pad 0 :(11.68057377487453, 45.25017596562708, NaN)
+**Moved from Landing pad to report: 1**
+[Remaining battery: 1708.689616649285]
+[Total distance till now: 291.31038335071503]
+**Visited Report 2: (11.679515587541049, 45.25463588008391, NaN)**
+[Remaining battery: 1493.723355973568]
+[Total distance till now: 506.276644026432]
+**Visited Report 3: (11.682447027147106, 45.25457502521913, NaN)**
+[Remaining battery: 1264.1607188944158]
+[Total distance till now: 735.8392811055841]
+A path got created!
+
+[Remaining battery: 2000.0]
+[Total distance till now: 0.0]
+**Moved from Landing pad to report: 4**
+[Remaining battery: 1645.4080687475]
+[Total distance till now: 354.5919312525]
+**Visited Report 5: (11.687631224138904, 45.24996074233853, NaN)**
+[Remaining battery: 1376.962298577887]
+[Total distance till now: 623.0377014221131]
+A path got created!
+
+------------
+Checked landing pad 1 :(11.7253211727658, 45.256883951829934, NaN)
+**Moved from Landing pad to report: 6**
+[Remaining battery: 1877.5423374608108]
+[Total distance till now: 122.45766253918919]
+**Visited Report 7: (11.7271740791487, 45.26129281358083, NaN)**
+[Remaining battery: 1469.8581330695067]
+[Total distance till now: 530.1418669304933]
+A path got created!
+
+[Remaining battery: 2000.0]
+[Total distance till now: 0.0]
+**Moved from Landing pad to report: 8**
+[Remaining battery: 1250.7540890734842]
+[Total distance till now: 749.2459109265158]
+A path got created!
+
+------------
+Checked landing pad 2 :(11.7108299303998, 45.26601021242929, NaN)
+**Moved from Landing pad to report: 9**
+[Remaining battery: 1717.8684985207935]
+[Total distance till now: 282.1315014792064]
+**Visited Report 10: (11.714685932693534, 45.26922458007019, NaN)**
+[Remaining battery: 1418.0561350217563]
+[Total distance till now: 581.9438649782437]
+A path got created!
+
+[Remaining battery: 2000.0]
+[Total distance till now: 0.0]
+**Moved from Landing pad to report: 11**
+[Remaining battery: 1656.8196353001772]
+[Total distance till now: 343.18036469982286]
+**Visited Report 12: (11.706747203189094, 45.26413020819568, NaN)**
+[Remaining battery: 1243.9435085528803]
+[Total distance till now: 756.0564914471197]
+A path got created!
+
+[Remaining battery: 2000.0]
+[Total distance till now: 0.0]
+**Moved from Landing pad to report: 13**
+[Remaining battery: 1404.3310776063809]
+[Total distance till now: 595.6689223936193]
+A path got created!
+
+Returned to landing pad
+Number of Paths Created: 7

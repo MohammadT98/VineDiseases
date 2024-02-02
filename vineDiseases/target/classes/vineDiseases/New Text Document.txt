@@ -1,0 +1,478 @@
+package vineDiseases;
+
+import com.vividsolutions.jump.feature.AttributeType;
+import com.vividsolutions.jump.feature.FeatureCollection;
+import com.vividsolutions.jump.feature.FeatureDataset;
+import com.vividsolutions.jump.feature.FeatureSchema;
+import com.vividsolutions.jump.workbench.model.Layer;
+import com.vividsolutions.jump.workbench.plugin.AbstractPlugIn;
+import com.vividsolutions.jump.workbench.plugin.PlugInContext;
+import com.vividsolutions.jump.workbench.ui.GUIUtil;
+import com.vividsolutions.jump.feature.BasicFeature;
+import com.vividsolutions.jump.feature.Feature;
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import com.vividsolutions.jump.workbench.ui.plugin.FeatureInstaller;
+import com.vividsolutions.jump.workbench.ui.renderer.style.BasicStyle;
+import com.vividsolutions.jump.workbench.ui.renderer.style.SquareVertexStyle;
+import com.vividsolutions.jump.io.DriverProperties;
+import com.vividsolutions.jump.io.ShapefileReader;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Point;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.io.File;
+
+import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.awt.EventQueue;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+//Add these imports at the top of your file.
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
+public class VineDiseaseDetectionPlugin extends AbstractPlugIn implements ActionListener {
+	private PlugInContext plugInContext;
+	private static final double BATTERY_RANGE = 2000;
+	private static final double MAX_PATH_LENGTH = 200000000;
+	Map<Feature, Boolean> visitedReports = new HashMap<>();
+
+	@Override
+	public boolean execute(PlugInContext context) throws Exception {
+		EventQueue.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				actionPerformed(null);
+			}
+		});
+		return true;
+	}
+
+	@Override
+	public void initialize(PlugInContext context) throws Exception {
+		this.plugInContext = context;
+		// Add the plugin to the menu
+		FeatureInstaller featureInstaller = context.getFeatureInstaller();
+		featureInstaller.addMainMenuPlugin(this, new String[] { "Plugins", "Vine Disease Detection" }, "Load Layers",
+				false, null, null);
+	}
+
+	private PlugInContext getPlugInContext() {
+		return this.plugInContext;
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		PlugInContext context = getPlugInContext();
+		FeatureCollection reportFeatureCollection = null;
+		FeatureCollection landingPadFeatureCollection = null;
+
+		try {
+			File boundaryLayerFile = promptForFile(context, "Select Boundary Layer File");
+			if (boundaryLayerFile != null) {
+				// Create DriverProperties and set the input file name
+				DriverProperties boundaryDp = new DriverProperties();
+				boundaryDp.set("File", boundaryLayerFile.getAbsolutePath());
+
+				// Load the data from the shapefile
+				ShapefileReader boundaryShapefileReader = new ShapefileReader();
+				FeatureCollection boundaryFeatureCollection = boundaryShapefileReader.read(boundaryDp);
+
+				// Create a FeatureSchema with date attribute
+				FeatureSchema boundarySchema = new FeatureSchema();
+				boundarySchema.addAttribute("geometry", AttributeType.GEOMETRY);
+				boundarySchema.addAttribute("date", AttributeType.DATE);
+
+				// Add features with the date attributes to the FeatureCollection
+				FeatureCollection newBoundaryFeatureCollection = new FeatureDataset(
+						boundaryFeatureCollection.getFeatureSchema());
+				for (Feature boundaryFeature : boundaryFeatureCollection.getFeatures()) {
+					Feature newBoundaryFeature = new BasicFeature(boundarySchema);
+					newBoundaryFeature.setGeometry(boundaryFeature.getGeometry());
+					if (boundaryFeature.getSchema().hasAttribute("date")) {
+						newBoundaryFeature.setAttribute("date", boundaryFeature.getAttribute("date"));
+					} else {
+						newBoundaryFeature.setAttribute("date", null); // Set the default value to null
+					}
+					newBoundaryFeatureCollection.add(newBoundaryFeature);
+				}
+
+				// Create a layer with the specified name, FeatureCollection, and FeatureSchema
+				Layer boundaryLayer = new Layer("Boundary Layer", Color.GREEN, newBoundaryFeatureCollection,
+						context.getLayerManager());
+
+				// Add the layer to the LayerManager
+				context.getLayerManager().addLayer("Boundaries", boundaryLayer);
+			}
+
+			File reportLayerFile = promptForFile(context, "Select Report Layer File");
+
+			if (reportLayerFile != null) {
+				// Create DriverProperties and set the input file name
+				DriverProperties reportDp = new DriverProperties();
+				reportDp.set("File", reportLayerFile.getAbsolutePath());
+
+				// Load the data from the shapefile
+				ShapefileReader reportShapefileReader = new ShapefileReader();
+				reportFeatureCollection = reportShapefileReader.read(reportDp);
+
+				// Create a FeatureSchema with date attribute
+				FeatureSchema reportSchema = new FeatureSchema();
+				reportSchema.addAttribute("geometry", AttributeType.GEOMETRY);
+				reportSchema.addAttribute("date", AttributeType.DATE);
+
+				// Add features with the date attributes to the FeatureCollection
+				FeatureCollection newReportFeatureCollection = new FeatureDataset(
+						reportFeatureCollection.getFeatureSchema());
+				for (Feature reportFeature : reportFeatureCollection.getFeatures()) {
+					Feature newReportFeature = new BasicFeature(reportSchema);
+					newReportFeature.setGeometry(reportFeature.getGeometry());
+					if (reportFeature.getSchema().hasAttribute("date")) {
+						newReportFeature.setAttribute("date", reportFeature.getAttribute("date"));
+					} else {
+						newReportFeature.setAttribute("date", null); // Set the default value to null
+					}
+					newReportFeatureCollection.add(newReportFeature);
+				}
+
+				// Create a layer with the specified name, FeatureCollection, and FeatureSchema
+				Layer reportLayer = new Layer("Report Layer", Color.BLUE, newReportFeatureCollection,
+						context.getLayerManager());
+
+				// Add the layer to the LayerManager
+				context.getLayerManager().addLayer("Reports", reportLayer);
+			}
+
+			File landingPadLayerFile = promptForFile(context, "Select Landing Pad Layer File");
+			if (landingPadLayerFile != null) {
+				// Create DriverProperties and set the input file name
+				DriverProperties landingPadDp = new DriverProperties();
+				landingPadDp.set("File", landingPadLayerFile.getAbsolutePath());
+
+				// Load the data from the shapefile
+				ShapefileReader landingPadShapefileReader = new ShapefileReader();
+				landingPadFeatureCollection = landingPadShapefileReader.read(landingPadDp);
+
+				// Create a FeatureSchema with date attribute
+				FeatureSchema landingPadSchema = new FeatureSchema();
+				landingPadSchema.addAttribute("geometry", AttributeType.GEOMETRY);
+				landingPadSchema.addAttribute("date", AttributeType.DATE);
+
+				// Add features with the date attributes to the FeatureCollection
+				FeatureCollection newLandingPadFeatureCollection = new FeatureDataset(
+						landingPadFeatureCollection.getFeatureSchema());
+				for (Feature landingPadFeature : landingPadFeatureCollection.getFeatures()) {
+					Feature newLandingPadFeature = new BasicFeature(landingPadSchema);
+					newLandingPadFeature.setGeometry(landingPadFeature.getGeometry());
+					if (landingPadFeature.getSchema().hasAttribute("date")) {
+						newLandingPadFeature.setAttribute("date", landingPadFeature.getAttribute("date"));
+					} else {
+						newLandingPadFeature.setAttribute("date", null); // Set the default value to null
+					}
+					newLandingPadFeatureCollection.add(newLandingPadFeature);
+				}
+				// Create a layer with the specified name, FeatureCollection, and FeatureSchema
+				Layer landingPadLayer = new Layer("Landing Pad Layer", Color.BLUE, newLandingPadFeatureCollection,
+						context.getLayerManager());
+
+				// Add the layer to the LayerManager
+				context.getLayerManager().addLayer("Landing Pads", landingPadLayer);
+
+				// Customize the landing pad layer symbolization
+				BasicStyle landingPadStyle = landingPadLayer.getBasicStyle();
+				landingPadStyle.setRenderingFill(false); // Do not fill the shape
+				landingPadStyle.setLineWidth(2); // Set the line width
+				landingPadStyle.setLineColor(Color.BLUE); // Set the line color
+				SquareVertexStyle landingPadVertexStyle = new SquareVertexStyle(); // Create a new SquareVertexStyle
+																					// object
+
+				landingPadVertexStyle.setEnabled(true); // Enable vertex style
+				landingPadVertexStyle.setFillColor(Color.BLUE); // Set the fill color
+				landingPadVertexStyle.setSize(12); // Set the size
+				landingPadLayer.addStyle(landingPadVertexStyle); // Add the vertex style to the landing pad layer
+
+				// Call computeFlightPaths after loading both layers
+				if (reportFeatureCollection != null && landingPadFeatureCollection != null) {
+					List<FeatureCollection> landingPadFeatureCollections = new ArrayList<>();
+					landingPadFeatureCollections.add(landingPadFeatureCollection);
+
+					List<Geometry> flightPaths = computeFlightPaths(context, reportFeatureCollection,
+							landingPadFeatureCollection);
+
+					// Create a FeatureSchema for flight paths
+					FeatureSchema flightPathSchema = new FeatureSchema();
+					flightPathSchema.addAttribute("geometry", AttributeType.GEOMETRY);
+					FeatureCollection flightPathFeatureCollection = new FeatureDataset(flightPathSchema);
+
+					// Add the flight path geometries to the flightPathFeatureCollection
+					for (Geometry flightPath : flightPaths) {
+						Feature flightPathFeature = new BasicFeature(flightPathSchema);
+						flightPathFeature.setGeometry(flightPath);
+						flightPathFeatureCollection.add(flightPathFeature);
+					}
+
+					// Create a layer for the flight paths
+					Layer flightPathLayer = new Layer("Flight Paths", Color.RED, flightPathFeatureCollection,
+							context.getLayerManager());
+
+					// Add the layer to the LayerManager
+					context.getLayerManager().addLayer("Flight Paths", flightPathLayer);
+				}
+			}
+		} catch (Throwable t) {
+			context.getWorkbenchContext().getErrorHandler().handleThrowable(t);
+		}
+	}
+
+	private File promptForFile(PlugInContext context, String title) {
+		JFileChooser fileChooser = new JFileChooser();
+		fileChooser.setDialogTitle(title);
+		fileChooser.setMultiSelectionEnabled(false);
+
+		// Add a file filter for specific file types (e.g., shapefiles)
+		FileNameExtensionFilter filter = new FileNameExtensionFilter("Shapefile (*.shp)", "shp");
+		fileChooser.setFileFilter(filter);
+
+		int returnVal = fileChooser.showOpenDialog(context.getWorkbenchFrame());
+		if (returnVal != JFileChooser.APPROVE_OPTION) {
+			return null;
+		}
+		return fileChooser.getSelectedFile();
+	}
+
+	List<String> droneActions = new ArrayList<>();
+	
+	private List<Geometry> computeFlightPaths(PlugInContext context, FeatureCollection reportFeatureCollection,
+			FeatureCollection landingPadFeatureCollection) {
+		for (Feature report : reportFeatureCollection.getFeatures()) {
+		    visitedReports.put(report, false);
+		}
+
+		List<Geometry> paths = new ArrayList<>();
+		double remainingBattery = BATTERY_RANGE;
+
+		Geometry landingPadGeometry = landingPadFeatureCollection.getFeatures().get(0).getGeometry();
+		Coordinate landingPadCoord = landingPadGeometry.getCoordinate();
+
+		List<Feature> remainingReports = new ArrayList<>(reportFeatureCollection.getFeatures());
+		List<Feature> unreachableReports = new ArrayList<>();
+		Coordinate currentCoord = landingPadCoord;
+		GeometryFactory geometryFactory = new GeometryFactory();
+	    List<Feature> trulyUnreachableReports = new ArrayList<>(); // list to keep track of truly unreachable reports
+	    AtomicReference<List<Feature>> trulyUnreachableReportsRef = new AtomicReference<>(new ArrayList<>());
+
+	    int reportNumber = 0;
+	    
+	    while (!remainingReports.isEmpty()) {
+	        // Create a final copy of currentCoord, remainingBattery and totalDistanceInCurrentPath
+	        final Coordinate currentCoordFinal = currentCoord;
+	        final double remainingBatteryFinal = remainingBattery;
+
+	        // Find all reports within reach
+	        List<Feature> reportsWithinReach = getReportsWithinReach(remainingReports, remainingBatteryFinal / 2,
+	                currentCoordFinal, landingPadCoord);
+
+	        // If no reachable reports and there are unreachable reports, recharge and move them to remaining reports
+	        if (reportsWithinReach.isEmpty() && !unreachableReports.isEmpty()) {
+	        	if (!currentCoord.equals(landingPadCoord)) {
+	        	    addPath(paths, currentCoord, landingPadCoord, geometryFactory);
+	        	}
+	            remainingBattery = BATTERY_RANGE;
+	            currentCoord = landingPadCoord;
+	            
+	            
+	            // Check if unreachable reports are the same as the last iteration (truly unreachable)
+	            if (unreachableReports.containsAll(trulyUnreachableReports) && trulyUnreachableReports.containsAll(unreachableReports)) {
+	                break;  // All remaining reports are unreachable, break out of the loop
+	            }
+
+	            trulyUnreachableReports = new ArrayList<>(unreachableReports);  // Update truly unreachable reports
+	            
+	            // Move only reachable reports from unreachableReports to remainingReports
+	            List<Feature> reachableFromUnreachable = unreachableReports.stream().filter(
+	                    report -> getReportsWithinReach(Collections.singletonList(report), BATTERY_RANGE, landingPadCoord, landingPadCoord).size() == 1).collect(Collectors.toList());
+	            
+	            unreachableReports.removeAll(reachableFromUnreachable);
+	            remainingReports.addAll(reachableFromUnreachable);
+	            
+	            if (unreachableReports.isEmpty()) {
+	                break; // All remaining reports are unreachable, break out of the loop
+	            }
+	            
+	            // Check if there are truly unreachable reports left. If yes, break the loop to avoid infinite loop
+	            List<Feature> currentTrulyUnreachableReports = trulyUnreachableReportsRef.get();
+	            if (currentTrulyUnreachableReports.containsAll(unreachableReports)) {
+	                break;
+	            }
+	            
+	            trulyUnreachableReportsRef.set(new ArrayList<>(unreachableReports));
+	            unreachableReports.clear();
+	        }
+
+	        Feature nextReport = reportsWithinReach.stream().filter(report -> {
+	            Coordinate reportCoord = report.getGeometry().getCoordinate();
+	            double distanceToReport = haversineDistance(currentCoordFinal, reportCoord);
+	            double distanceBackToLandingPad = haversineDistance(reportCoord, landingPadCoord);
+	            double totalDistance = distanceToReport + distanceBackToLandingPad;
+	            // Filter out reports that the drone cannot reach and return from with current battery life
+	            return remainingBatteryFinal / 2 >= totalDistance;
+	        }).max(Comparator.comparingDouble(report -> {
+	            // Prioritize reports that would use up more of the drone's battery, while still allowing it to return to the landing pad.
+	            Coordinate reportCoord = report.getGeometry().getCoordinate();
+	            double distanceToReport = haversineDistance(currentCoordFinal, reportCoord);
+	            double distanceBackToLandingPad = haversineDistance(reportCoord, landingPadCoord);
+	            double totalDistance = distanceToReport + distanceBackToLandingPad;
+	            return totalDistance / 2;
+	        })).orElse(null);
+	        
+	        // Add the declaration of distanceToReport here
+	        double distanceToReport = (nextReport != null) ? haversineDistance(currentCoordFinal, nextReport.getGeometry().getCoordinate()) : 0;
+
+	        if (nextReport == null || remainingBattery / 2 < distanceToReport) {
+	        	// No reachable reports left or not enough battery for a trip to the next report, so return to landing pad
+	        	addPath(paths, currentCoord, landingPadCoord, geometryFactory);
+	        	droneActions.add("Returned to landing pad"); // Add this line
+	        	remainingBattery = BATTERY_RANGE;
+	        	currentCoord = landingPadCoord;
+	        	if (nextReport != null) {
+	        	    unreachableReports.add(nextReport); // Add report to unreachable reports if it exists
+	        	    remainingReports.remove(nextReport);
+	        	}
+	            continue;
+	        }
+	        if (!visitedReports.get(nextReport)) {
+	        Coordinate reportCoord = nextReport.getGeometry().getCoordinate();
+
+	     // travel to the next report
+	        addPath(paths, currentCoord, reportCoord, geometryFactory);
+	        visitedReports.put(nextReport, true); // Mark this report as visited
+	        droneActions.add("Visited report " + (++reportNumber) + ": " + nextReport.getGeometry().getCoordinate().toString() +" | "+ visitedReports.get(nextReport)); 
+	        remainingBattery -= distanceToReport; // Update battery for one-way trip
+	        currentCoord = reportCoord;
+	        remainingReports.remove(nextReport);
+
+	     // Check if there's enough battery to get back to the landing pad
+	        double distanceBackToLandingPad = haversineDistance(currentCoord, landingPadCoord);
+	        if (remainingBattery / 2 < distanceBackToLandingPad) {
+	            // Return to landing pad if not enough battery for a trip back
+	            addPath(paths, currentCoord, landingPadCoord, geometryFactory);
+	            droneActions.add("Returned to landing pad"); // Add this line
+	            remainingBattery = BATTERY_RANGE;
+	            currentCoord = landingPadCoord;
+	        }
+	        }
+		}
+
+	 // If the drone is not at the landing pad at the end of all the reports, return to the landing pad
+	    if (!currentCoord.equals(landingPadCoord)) {
+	        addPath(paths, currentCoord, landingPadCoord, geometryFactory);
+	        droneActions.add("Returned to landing pad"); // Add this line
+	    }
+	    
+	 // Define the paths of your output files.
+	    String outputPath = "C:\\geo\\Output\\";
+	    String droneActionsFilePath = outputPath + "droneActions.txt";
+
+	    try {
+	        // Create the PrintWriter objects for each file.
+	        PrintWriter droneActionsWriter = new PrintWriter(Files.newBufferedWriter(Paths.get(droneActionsFilePath)));
+
+	        // Write the drone actions to the droneActions.txt file.
+	        droneActionsWriter.println("Drone actions:");
+	        droneActions.forEach(droneActionsWriter::println);
+
+	        // Close the PrintWriter objects to flush any remaining data in the buffer and release the file resources.
+	        droneActionsWriter.close();
+	    } catch (IOException e) {
+	        // Handle any IOException that might occur during file I/O.
+	        e.printStackTrace();
+	    }
+	    return paths;
+	}
+
+	List<Feature> getReportsWithinReach(List<Feature> remainingReports, double remainingBattery,
+	        Coordinate currentCoord, Coordinate landingPadCoord) {
+	    List<Feature> reportsWithinReach = new ArrayList<>();
+
+	    for (Feature report : remainingReports) {
+	        // Check if this report has been visited
+	        if (visitedReports.get(report)) {
+	            continue; // Skip this report if it has been visited
+	        }
+
+	        Coordinate reportCoord = report.getGeometry().getCoordinate();
+	        double distanceToReport = haversineDistance(currentCoord, reportCoord);
+	        double distanceFromLandingPad = haversineDistance(landingPadCoord, reportCoord);
+
+	        // Only consider reports that can be reached with the remaining battery and are within the drone's maximum range from the landing pad
+	        if (remainingBattery >= distanceToReport && distanceFromLandingPad <= BATTERY_RANGE) {
+	            reportsWithinReach.add(report);
+	        }
+	    }
+
+	    return reportsWithinReach;
+	}
+
+	private void addPath(List<Geometry> paths, Coordinate fromCoord, Coordinate toCoord, GeometryFactory geometryFactory) {
+	    double distance = haversineDistance(fromCoord, toCoord);
+	    if (distance <= MAX_PATH_LENGTH) {
+	        Coordinate[] pathCoords = new Coordinate[] { fromCoord, toCoord };
+	        Geometry path = geometryFactory.createLineString(pathCoords);
+	        paths.add(path);
+	    } else {
+	        double fraction = MAX_PATH_LENGTH / distance;
+	        double newX = fromCoord.x + fraction * (toCoord.x - fromCoord.x);
+	        double newY = fromCoord.y + fraction * (toCoord.y - fromCoord.y);
+	        Coordinate intermediateCoord = new Coordinate(newX, newY);
+	        addPath(paths, fromCoord, intermediateCoord, geometryFactory);
+	        addPath(paths, intermediateCoord, toCoord, geometryFactory);
+	    }
+	}
+
+	public static double haversineDistance(Coordinate coord1, Coordinate coord2) {
+		// convert latitude and longitude values from degrees to radians
+		double lat1 = Math.toRadians(coord1.y);
+		double lon1 = Math.toRadians(coord1.x);
+		double lat2 = Math.toRadians(coord2.y);
+		double lon2 = Math.toRadians(coord2.x);
+
+		// calculate differences between latitudes and longitudes
+		double dLat = lat2 - lat1;
+		double dLon = lon2 - lon1;
+
+		// apply the Haversine formula
+		double a = Math.pow(Math.sin(dLat / 2), 2) + Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin(dLon / 2), 2);
+		double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+		// Earth's mean radius in meters
+		final double EARTH_RADIUS = 6_371_000;
+
+		// calculate and return the distance in meters
+		return EARTH_RADIUS * c;
+	}
+}
