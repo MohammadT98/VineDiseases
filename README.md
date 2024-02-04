@@ -1,4 +1,4 @@
-# VineDiseases
+# VineDiseases OpenJUMP Plugin
 
 ## Overview
 The OpenJUMP Vine Disease Detection Plugin is a specialized tool designed to streamline the process of monitoring and managing vineyard health through the use of drone technology. This plugin integrates seamlessly with the OpenJUMP GIS platform, enabling users to effectively plan and execute drone flights for the purpose of vine disease detection. By leveraging spatial data and advanced algorithmic processing, the plugin facilitates precise flight path computations, ensuring comprehensive coverage of vineyard areas while adhering to operational constraints such as battery life.
