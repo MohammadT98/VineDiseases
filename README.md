@@ -38,25 +38,25 @@ The plugin prompts the user to select four Shapefile layers through a dialog:
 - Boundary, extensions, reports, and landing pad layers.
 
 ```java
-@Override
+    @Override
     public boolean execute(PlugInContext context) throws Exception {
-// ... Main execution logic ...
+      // ... Main execution logic ...
     }
  
     @Override
     public void initialize(PlugInContext context) throws Exception {
-// ... Adding the plugin to the menu ...
+      // ... Adding the plugin to the menu ...
     }
  
-// Loading layers, Call computeFlightPaths, and create a layer for the flight paths
+      // Loading layers, Call computeFlightPaths, and create a layer for the flight paths
     @Override
     public void actionPerformed(ActionEvent e) {
-// ...
+      // ...
     }
  
     // Prompt the user to select a file (*.shp)
     private File promptForFile(PlugInContext context, String title) {
-// ...
+      // ...
     }
 ```
 
