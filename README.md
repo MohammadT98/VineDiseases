@@ -60,21 +60,21 @@ The plugin prompts the user to select four Shapefile layers through a dialog:
     }
 ```
 
-# Algorithm Overview
+## Algorithm Overview
 The core algorithm underpinning the Vine Disease Detection Plugin is designed for efficiency and accuracy. It involves spatial indexing to quickly locate reports within proximity to each landing pad and calculates flight paths that respect the drone's battery limitations. The algorithm ensures that all areas of interest are covered, prioritizing reports based on their location and the drone's remaining battery life. The process is highly automated, requiring minimal user intervention once the initial parameters are set.
 ![](Images/Result0.png)
 
-# Use Case
+## Use Case
 The plugin is particularly useful for vineyard managers and agricultural professionals seeking to leverage drone technology for the early detection of vine diseases. By automating the process of flight path calculation and optimizing for battery life, the plugin significantly reduces the time and effort required to monitor large vineyard areas, enabling more frequent and thorough inspections.
 
-# Output
+## Output
 The OpenJUMP Vine Disease Detection Plugin provides essential outputs to facilitate vineyard monitoring and management. These outputs include:
 
 - **Flight Paths**: The plugin generates layers illustrating the drone's flight paths between landing pads and report locations, ensuring comprehensive coverage of the vineyard.
 - **Drone Actions Log**: A log file named "droneActions.txt" details the drone's journey, including movements, actions, and battery levels, aiding in mission analysis and optimization.
 - **Updated Layers**: Successful flight path computations result in the addition of new layers within OpenJUMP, showcasing boundaries, extensions, reports, landing pads, and the computed flight paths for easy visualization and further analysis.
     
-# Example Drone's Action Log
+## Example Drone's Action Log
 Drone's actions:
 ```
 Checked landing pad 0 :(11.68057377487453, 45.25017596562708, NaN)
